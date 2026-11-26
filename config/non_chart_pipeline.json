@@ -1,0 +1,29 @@
+{
+  "model_path": "../models/best_nongraph_detect_yolo26m.pt",
+  "detector": {
+    "confidence_threshold": 0.25,
+    "duplicate_iou_threshold": 0.85,
+    "duplicate_containment_threshold": 0.9
+  },
+  "opencv": {
+    "crop_padding_fraction": 0.02,
+    "enhance_contrast": false,
+    "denoise": false,
+    "upscale": false,
+    "contrast_clip_limit": 2.0,
+    "denoise_strength": 10,
+    "upscale_factor": 2
+  },
+  "vlm": {
+    "classify_full_image": false,
+    "classify_regions": true,
+    "categories_path": "image_categories.json",
+    "prompts_directory": "../prompts",
+    "scene_prompt_file": "non_chart_prompt.txt",
+    "region_prompt_file": "non_chart_region_prompt.txt"
+  },
+  "outputs": {
+    "crop_directory": "../non_chart_crops",
+    "visualization_directory": "../output/non_chart_visualizations"
+  }
+}

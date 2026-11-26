@@ -1,0 +1,12 @@
+numpy>=1.24,<2.0
+opencv-python>=4.8
+paddlepaddle>=3.0,<4
+paddleocr>=3.0,<4
+Pillow>=9.0
+ultralytics>=8.2,<9
+requests>=2.31
+PyYAML>=6.0
+
+# mps-ocr: Using local installation from ./mps-ocr/core/
+# To install: pip install -e ./mps-ocr/core/
+# Or with extras: pip install -e "./mps-ocr/core[paddleocr]"

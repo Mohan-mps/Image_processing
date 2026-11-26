@@ -1,0 +1,15 @@
+Analyze only the supplied crop, which was detected as class "{class_name}".
+Describe visible evidence for the class without guessing identity. Extract
+legible text from this region only. Include only directly visible relationships
+whose entities are both in this crop. If something is not identifiable, return
+null or an empty array.
+
+Return one JSON object:
+{
+  "object_name": "specific visible name or null",
+  "description": "concise visual description or null",
+  "extracted_text": ["visible text"],
+  "relationships": [
+    {"subject": "visible entity", "relation": "visible relation", "object": "visible entity"}
+  ]
+}

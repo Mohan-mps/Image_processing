@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.py[cod]
+
+cropped_charts/*
+!cropped_charts/.gitkeep
+non_chart_images/*
+!non_chart_images/.gitkeep
+models/non_chart/*.pt
+models/non_chart/runs/
+non_chart_crops/*
+!non_chart_crops/.gitkeep
+output/*
+!output/.gitkeep

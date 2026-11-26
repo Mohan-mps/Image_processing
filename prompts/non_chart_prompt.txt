@@ -1,0 +1,16 @@
+Analyze this non-chart image for general visual understanding. Do not invent
+objects, text, or relationships. If uncertain, use "unknown" or null.
+
+Choose exactly one image_type from these configured categories: {categories}.
+Provide a concise summary, all legible visible text as strings, and only directly visible
+relationships. Do not infer hidden context or identity.
+
+Return one JSON object with this shape:
+{
+  "image_type": "one configured category",
+  "summary": "string or null",
+  "extracted_text": ["visible text"],
+  "relationships": [
+    {"subject": "visible entity", "relation": "visible relation", "object": "visible entity"}
+  ]
+}

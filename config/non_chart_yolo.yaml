@@ -1,0 +1,7 @@
+# Edit the class names to match the IDs used in your YOLO annotation files.
+path: ../datasets/non_chart_dataset
+train: images/train
+val: images/val
+test: images/test
+names:
+  0: object
