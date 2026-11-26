@@ -6,6 +6,8 @@ cropped_charts/*
 !cropped_charts/.gitkeep
 axis_crops/*
 !axis_crops/.gitkeep
+input/*
+!input/.gitkeep
 non_chart_images/*
 !non_chart_images/.gitkeep
 models/non_chart/*.pt
