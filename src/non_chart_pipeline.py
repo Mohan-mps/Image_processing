@@ -109,7 +109,6 @@ def analyze_non_chart_image(
     chart_boxes: Sequence[tuple[int, int, int, int]] = (),
     dpi: float = DEFAULT_DPI,
     dpi_source: str = "fallback_configuration",
-    skip_vlm: bool = False,
 ) -> dict[str, Any]:
     project_root = Path(__file__).resolve().parents[1]
     pipeline_config = config or load_non_chart_config(
@@ -118,7 +117,7 @@ def analyze_non_chart_image(
     categories_file = categories_path or pipeline_config.categories_path
     prompts_dir = prompt_directory or pipeline_config.prompts_directory
     region_prompt_path = prompts_dir / pipeline_config.region_prompt_file
-    if pipeline_config.classify_regions and not skip_vlm:
+    if pipeline_config.classify_regions:
         if not region_prompt_path.is_file():
             raise FileNotFoundError(f"Non-chart prompt not found: {region_prompt_path}")
         region_prompt_template = region_prompt_path.read_text(encoding="utf-8")

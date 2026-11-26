@@ -74,7 +74,6 @@ def process_image(
     ocr_reader: Any | None = None,
     minimum_confidence: float = 0.1,
     dpi: float = DEFAULT_DPI,
-    skip_vlm: bool = False,
 ) -> Path:
     processing_started = time.perf_counter()
     stage_seconds = {
@@ -116,7 +115,7 @@ def process_image(
         image = cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
     elif image.shape[2] != 3:
         raise ValueError(f"Unsupported image channel count: {image.shape[2]}")
-    if not skip_vlm and (vlm_extractor is None or prompt_manager is None):
+    if vlm_extractor is None or prompt_manager is None:
         raise ValueError("Qwen VLM extractor and prompt manager are required")
     height, width = image.shape[:2]
     chart_results: list[dict[str, Any]] = []
@@ -169,7 +168,6 @@ def process_image(
                 ocr_reader,
                 minimum_confidence,
                 dpi,
-                skip_vlm,
             )
             futures[future] = chart_id
         
@@ -247,7 +245,6 @@ def process_image(
             chart_boxes=[tuple(box.as_list()) for box in detections],
             dpi=dpi,
             dpi_source=dpi_source,
-            skip_vlm=skip_vlm,
         )
         stage_seconds["non_chart_analysis_seconds"] = (
             time.perf_counter() - stage_started
@@ -425,7 +422,6 @@ def _process_single_chart(
     ocr_reader: Any | None,
     minimum_confidence: float,
     dpi: float,
-    skip_vlm: bool = False,
 ) -> tuple[dict[str, Any] | None, list[dict[str, Any]], list[dict[str, Any]], dict[str, float]]:
     """Process a single chart and return its results and timing data."""
     
@@ -581,41 +577,33 @@ def _process_single_chart(
                 }
             )
 
-    if skip_vlm:
-        x_ticks = list(dict.fromkeys(str(tick["text"]).strip() for tick in x_tick_ocr if str(tick.get("text", "")).strip()))
-        y_ticks = list(dict.fromkeys(str(tick["text"]).strip() for tick in y_tick_ocr if str(tick.get("text", "")).strip()))
-        uncertain_values: list[str] = []
-        is_graph = True
-    else:
-        stage_started = time.perf_counter()
-        request = prompt_manager.build(
-            prompt_mode,
-            crop,
-            axis_crops.x_axis,
-            axis_crops.y_axis,
-            axis_crops.y_axis_rotated,
-        )
-        stage_timings["prompt_build_seconds"] = time.perf_counter() - stage_started
+    stage_started = time.perf_counter()
+    request = prompt_manager.build(
+        prompt_mode,
+        crop,
+        axis_crops.x_axis,
+        axis_crops.y_axis,
+        axis_crops.y_axis_rotated,
+    )
+    stage_timings["prompt_build_seconds"] = time.perf_counter() - stage_started
 
-        stage_started = time.perf_counter()
-        vlm_result = vlm_extractor.extract(request)
-        stage_timings["vlm_inference_seconds"] = time.perf_counter() - stage_started
-        is_graph = vlm_result["is_graph"]
-        x_ticks = vlm_result["x_axis_tick"]
-        y_ticks = vlm_result["y_axis_tick"]
-        uncertain_values = vlm_result["uncertain_values"]
-
-    if not is_graph:
+    stage_started = time.perf_counter()
+    vlm_result = vlm_extractor.extract(request)
+    stage_timings["vlm_inference_seconds"] = time.perf_counter() - stage_started
+    
+    if not vlm_result["is_graph"]:
         LOGGER.warning(
             "Skipped YOLO detection %d in %s: VLM classified it as not a graph",
             chart_id,
             image_path.name,
         )
         return (None, [], axis_tick_viz_records, stage_timings)
-
+    
+    x_ticks = vlm_result["x_axis_tick"]
+    y_ticks = vlm_result["y_axis_tick"]
     review_candidates = [
         {"text": value, "axis": "unknown", "reason": "vlm_uncertain"}
-        for value in uncertain_values
+        for value in vlm_result["uncertain_values"]
     ]
     review_flags: list[str] = []
     if not plot.horizontal_axis_detected:
@@ -624,7 +612,7 @@ def _process_single_chart(
         review_flags.append("vertical_plot_axis_not_detected")
     if plot.confidence < 0.5:
         review_flags.append("plot_area_low_confidence")
-    if uncertain_values:
+    if vlm_result["uncertain_values"]:
         review_flags.append("vlm_uncertain_values")
     if not x_ticks:
         review_flags.append("no_x_ticks_detected")
@@ -648,13 +636,11 @@ def _process_single_chart(
     if review_flags:
         chart_result["review_required"] = True
         chart_result["review_flags"] = review_flags
-    if uncertain_values:
-        chart_result["uncertain_values"] = uncertain_values
+    if vlm_result["uncertain_values"]:
+        chart_result["uncertain_values"] = vlm_result["uncertain_values"]
     chart_result["x_tick_ocr"] = x_tick_ocr
     chart_result["y_tick_ocr"] = y_tick_ocr
-    chart_result["recognition_backend"] = (
-        "paddleocr" if skip_vlm else vlm_extractor.model
-    )
+    chart_result["recognition_backend"] = vlm_extractor.model
     chart_result["prompt_mode"] = prompt_mode
     
     chart_ground_truth = (
@@ -816,11 +802,6 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Accepted for compatibility; Qwen is now the only recognizer.",
     )
-    parser.add_argument(
-        "--skip-vlm",
-        action="store_true",
-        help="Skip all VLM calls; use YOLO/OpenCV/PaddleOCR only.",
-    )
     parser.add_argument("--ollama-model", default="qwen3.5:9b")
     parser.add_argument(
         "--ollama-url",
@@ -916,17 +897,15 @@ def main() -> None:
         ),
     )
     non_chart_model_load_seconds = time.perf_counter() - model_load_started
-    vlm_extractor = None
-    if not args.skip_vlm:
-        vlm_extractor = VLMExtractor(
-            args.ollama_model,
-            args.ollama_url,
-            args.ollama_temperature,
-            num_predict=args.ollama_num_predict,
-            timeout=args.ollama_timeout,
-            retries=args.ollama_retries,
-            retry_backoff=args.ollama_retry_backoff,
-        )
+    vlm_extractor = VLMExtractor(
+        args.ollama_model,
+        args.ollama_url,
+        args.ollama_temperature,
+        num_predict=args.ollama_num_predict,
+        timeout=args.ollama_timeout,
+        retries=args.ollama_retries,
+        retry_backoff=args.ollama_retry_backoff,
+    )
     
     try:
         run_setup_seconds = time.perf_counter() - setup_started
@@ -956,7 +935,6 @@ def main() -> None:
                 args.non_chart_prompts or non_chart_config.prompts_directory,
                 non_chart_config,
                 dpi=args.dpi,
-                skip_vlm=args.skip_vlm,
             )
             # Removed: timing_rows append and CSV writing
             image_results.append(json.loads(output_path.read_text(encoding="utf-8")))
@@ -970,8 +948,7 @@ def main() -> None:
             LOGGER.info("Wrote ground-truth accuracy report to %s", report_path)
     finally:
         # Ensure VLM extractor session is properly closed
-        if vlm_extractor is not None:
-            vlm_extractor.close()
+        vlm_extractor.close()
 
 
 if __name__ == "__main__":

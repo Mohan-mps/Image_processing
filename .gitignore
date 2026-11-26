@@ -4,6 +4,8 @@ __pycache__/
 
 cropped_charts/*
 !cropped_charts/.gitkeep
+axis_crops/*
+!axis_crops/.gitkeep
 non_chart_images/*
 !non_chart_images/.gitkeep
 models/non_chart/*.pt
@@ -12,3 +14,11 @@ non_chart_crops/*
 !non_chart_crops/.gitkeep
 output/*
 !output/.gitkeep
+reports/*
+!reports/.gitkeep
+*.md
+*.jpg
+*.png
+*.zip
+*xlsx
+*json
